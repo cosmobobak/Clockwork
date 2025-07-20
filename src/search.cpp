@@ -373,6 +373,7 @@ Value Worker::quiesce(Position& pos, Stack* ss, Value alpha, Value beta, i32 ply
 
     bool  is_in_check = pos.is_in_check();
     Value static_eval = is_in_check ? -VALUE_INF : evaluate(pos);
+    Value futility    = is_in_check ? -VALUE_INF : static_eval + tuned::quiesce_futility_margin;
 
     // Stand pat
     if (static_eval >= beta) {
@@ -390,9 +391,19 @@ Value Worker::quiesce(Position& pos, Stack* ss, Value alpha, Value beta, i32 ply
 
     // Iterate over the move list
     for (Move m = moves.next(); m != Move::none(); m = moves.next()) {
-        // QS SEE Pruning
-        if (best_value > -VALUE_WIN && !SEE::see(pos, m, tuned::quiesce_see_threshold)) {
-            continue;
+        const bool quiet = quiet_move(m);
+
+        if (best_value > -VALUE_WIN) {
+            // QS Futility Pruning
+            if (!quiet && !is_in_check && futility <= alpha && !SEE::see(pos, m, 1)) {
+                best_value = std::max(best_value, futility);
+                continue;
+            }
+
+            // QS SEE Pruning
+            if (!SEE::see(pos, m, tuned::quiesce_see_threshold)) {
+                continue;
+            }
         }
 
         // Do move
