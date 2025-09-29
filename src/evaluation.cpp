@@ -14,8 +14,8 @@
 
 namespace Clockwork {
 
-std::array<Bitboard, 64> king_ring_table = []() {
-    std::array<Bitboard, 64> king_ring_table{};
+std::array<std::array<Bitboard, 64>, 2> king_ring_table = []() {
+    std::array<std::array<Bitboard, 64>, 2> king_ring_table{};
     for (u8 sq_idx = 0; sq_idx < 64; sq_idx++) {
         Bitboard sq_bb     = Bitboard::from_square(Square{sq_idx});
         Bitboard king_ring = sq_bb;
@@ -27,7 +27,10 @@ std::array<Bitboard, 64> king_ring_table = []() {
         king_ring |= sq_bb.shift(Direction::SouthEast);
         king_ring |= sq_bb.shift(Direction::NorthWest);
         king_ring |= sq_bb.shift(Direction::SouthWest);
-        king_ring_table[sq_idx] = king_ring;
+        king_ring_table[static_cast<usize>(Color::White)][sq_idx] =
+          king_ring | king_ring.shift(Direction::North);
+        king_ring_table[static_cast<usize>(Color::Black)][sq_idx] =
+          king_ring | king_ring.shift(Direction::South);
     }
     return king_ring_table;
 }();
@@ -50,9 +53,9 @@ std::array<std::array<Bitboard, 64>, 2> passed_pawn_spans = []() {
 
 template<Color color>
 PScore evaluate_pawns(const Position& pos) {
-    constexpr i32 RANK_2 = 1;
-    constexpr i32 RANK_3 = 2;
-    constexpr Color them = color == Color::White ? Color::Black : Color::White;
+    constexpr i32   RANK_2 = 1;
+    constexpr i32   RANK_3 = 2;
+    constexpr Color them   = color == Color::White ? Color::Black : Color::White;
 
     Bitboard pawns     = pos.board().bitboard_for(color, PieceType::Pawn);
     Bitboard opp_pawns = pos.board().bitboard_for(~color, PieceType::Pawn);
@@ -63,7 +66,8 @@ PScore evaluate_pawns(const Position& pos) {
         Bitboard stoppers = opp_pawns & passed_pawn_spans[static_cast<usize>(color)][sq.raw];
         if (stoppers.empty()) {
             eval += PASSED_PAWN[sq.relative_sq(color).rank() - RANK_2];
-            if (pos.attack_table(color).read(sq.push<color>()).popcount() > pos.attack_table(them).read(sq.push<color>()).popcount()) {
+            if (pos.attack_table(color).read(sq.push<color>()).popcount()
+                > pos.attack_table(them).read(sq.push<color>()).popcount()) {
                 eval += DEFENDED_PASSED_PUSH;
             }
         }
@@ -87,7 +91,7 @@ PScore evaluate_pieces(const Position& pos) {
     constexpr Color opp  = ~color;
     PScore          eval = PSCORE_ZERO;
     Bitboard bb = pos.bitboard_for(color, PieceType::Pawn) | pos.attacked_by(opp, PieceType::Pawn);
-    Bitboard opp_king_ring = king_ring_table[pos.king_sq(opp).raw];
+    Bitboard opp_king_ring = king_ring_table[static_cast<usize>(opp)][pos.king_sq(opp).raw];
     for (PieceId id : pos.get_piece_mask(color, PieceType::Knight)) {
         eval += KNIGHT_MOBILITY[pos.mobility_of(color, id, ~bb)];
         eval += KNIGHT_KING_RING[pos.mobility_of(color, id, opp_king_ring)];
