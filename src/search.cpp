@@ -61,6 +61,7 @@ void Searcher::launch_search(SearchSettings settings_) {
         std::unique_lock lock_guard{mutex};
 
         settings = settings_;
+        tt.increment_age();
 
         for (auto& worker : m_workers) {
             worker->prepare();
@@ -435,7 +436,7 @@ Value Worker::search(
     ss->static_eval   = -VALUE_INF;
     if (!is_in_check) {
         correction      = m_td.history.get_correction(pos);
-        raw_eval        = tt_data ? tt_data->eval : evaluate(pos);
+        raw_eval        = tt_data && !is_mate_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
         ss->static_eval = raw_eval + correction;
         improving = (ss - 2)->static_eval != -VALUE_INF && ss->static_eval > (ss - 2)->static_eval;
 
@@ -677,6 +678,7 @@ Value Worker::search(
 
             if (quiet) {
                 reduction += (1024 - move_history / 8);
+                reduction += (ss->static_eval + 500 + 100 * depth <= alpha && !is_in_check) * 1024;
             }
 
             if (!quiet) {
@@ -858,7 +860,7 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
     Value static_eval = -VALUE_INF;
     if (!is_in_check) {
         correction  = m_td.history.get_correction(pos);
-        raw_eval    = tt_data ? tt_data->eval : evaluate(pos);
+        raw_eval    = tt_data && !is_mate_score(tt_data->eval) ? tt_data->eval : evaluate(pos);
         static_eval = raw_eval + correction;
 
         if (!tt_data) {
@@ -945,10 +947,12 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
 
 Value Worker::evaluate(const Position& pos) {
 #ifndef EVAL_TUNING
-    return static_cast<Value>(Clockwork::evaluate_stm_pov(pos, m_td.psqt_states.back()));
+    return std::clamp<Value>(
+      static_cast<Value>(Clockwork::evaluate_stm_pov(pos, m_td.psqt_states.back())), -VALUE_WIN + 1,
+      VALUE_WIN - 1);
 #else
     return -VALUE_INF;  // Not implemented in tune mode
 #endif
 }
-}
-}
+}  // namespace Search
+}  // namespace Clockwork

@@ -220,4 +220,4 @@ private:
     u64 m_raw = 0;
 };
 
-}
+}  // namespace Clockwork
