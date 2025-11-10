@@ -1,6 +1,7 @@
 #include <iomanip>
 #include <iostream>
 
+#include "cuckoo.hpp"
 #include "position.hpp"
 #include "repetition_info.hpp"
 #include "test.hpp"
@@ -73,9 +74,63 @@ void repeat_in_search() {
     REQUIRE(g_repetition_info.detect_repetition(8) == true);
 }
 
+void game_cycle_simple_knight_shuffle() {
+    std::cout << "game_cycle_simple_knight_shuffle" << std::endl;
+    g_position =
+      Position::parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3 1").value();
+    g_repetition_info.reset();
+    g_repetition_info.push(g_position.get_hash_key(), false);
+
+    move("g1f3");
+    move("g8f6");
+    move("f3g1");
+    move("f6g8");
+
+    // After completing the shuffle and returning to start, check if another shuffle would repeat
+    std::cout << "After f6g8, 50mr counter: " << g_position.get_50mr_counter() << std::endl;
+    std::cout << "has_game_cycle result: " << g_repetition_info.has_game_cycle(g_position, 4) << std::endl;
+}
+
+void game_cycle_explore() {
+    std::cout << "\n=== Exploring has_game_cycle behavior ===" << std::endl;
+
+    // Test case 1: Simple knight shuffle
+    std::cout << "\n** Test 1: Knight shuffle **" << std::endl;
+    g_position = Position::parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3 1").value();
+    g_repetition_info.reset();
+    g_repetition_info.push(g_position.get_hash_key(), false);
+
+    move("g1f3");
+    move("g8f6");
+    move("f3g1");
+    std::cout << "After f3g1, has_game_cycle(ply=3): " << g_repetition_info.has_game_cycle(g_position, 3) << std::endl;
+    std::cout << "After f3g1, has_game_cycle(ply=5): " << g_repetition_info.has_game_cycle(g_position, 5) << std::endl;
+
+    move("f6g8");
+    std::cout << "After f6g8 (back to start), has_game_cycle(ply=4): " << g_repetition_info.has_game_cycle(g_position, 4) << std::endl;
+
+    // Test case 2: Rook shuffle
+    std::cout << "\n** Test 2: Rook shuffle **" << std::endl;
+    g_position = Position::parse("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 3 1").value();
+    g_repetition_info.reset();
+    g_repetition_info.push(g_position.get_hash_key(), false);
+
+    move("a1b1");
+    move("a8b8");
+    move("b1a1");
+    std::cout << "After b1a1, has_game_cycle(ply=3): " << g_repetition_info.has_game_cycle(g_position, 3) << std::endl;
+}
+
 int main() {
     Zobrist::init_zobrist_keys();
+    Cuckoo::init();
+
     repeat_in_history();
     repeat_in_search();
+
+    game_cycle_simple_knight_shuffle();
+    game_cycle_explore();
+
+    std::cout << "\n=== All tests completed ===" << std::endl;
     return 0;
 }

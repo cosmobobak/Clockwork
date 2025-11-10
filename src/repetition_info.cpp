@@ -4,6 +4,8 @@
 #include "position.hpp"
 #include "rays.hpp"
 #include "util/types.hpp"
+#include <iostream>
+#include <iomanip>
 
 namespace Clockwork {
 
@@ -78,6 +80,9 @@ bool RepetitionInfo::has_game_cycle(const Position& pos, usize ply) {
         HashKey curr_key = old_key(i + 1);
 
         other ^= ~(curr_key ^ old_key(i));
+
+        std::cerr << "[DEBUG] i=" << i << " other=" << std::hex << other << std::dec << std::endl;
+
         if (other != 0) {
             continue;
         }
@@ -86,19 +91,27 @@ bool RepetitionInfo::has_game_cycle(const Position& pos, usize ply) {
 
         usize slot = Cuckoo::h1(diff);
 
+        std::cerr << "[DEBUG] other==0! diff=" << std::hex << diff << " slot1=" << slot << std::dec << std::endl;
+
         if (diff != Cuckoo::keys[slot]) {
             slot = Cuckoo::h2(diff);
+            std::cerr << "[DEBUG] h1 miss, trying h2=" << slot << " match=" << (diff == Cuckoo::keys[slot]) << std::endl;
         }
 
         if (diff != Cuckoo::keys[slot]) {
+            std::cerr << "[DEBUG] Cuckoo lookup failed!" << std::endl;
             continue;
         }
 
         Move mv = Cuckoo::moves[slot];
 
+        std::cerr << "[DEBUG] Found move in cuckoo: " << static_cast<int>(mv.from().raw) << "->" << static_cast<int>(mv.to().raw) << std::endl;
+
         if ((occ & rays::exclusive(mv.from(), mv.to())).empty()) {
+            std::cerr << "[DEBUG] Path is clear! Checking piece color..." << std::endl;
             // repetition is after root, done:
             if (ply > i) {
+                std::cerr << "[DEBUG] ply > i, returning true" << std::endl;
                 return true;
             }
 
@@ -107,7 +120,12 @@ bool RepetitionInfo::has_game_cycle(const Position& pos, usize ply) {
                 piece = pos.board()[mv.to()];
             }
 
+            std::cerr << "[DEBUG] piece color=" << static_cast<int>(piece.color())
+                      << " active=" << static_cast<int>(pos.active_color()) << std::endl;
+
             return piece.color() == pos.active_color();
+        } else {
+            std::cerr << "[DEBUG] Path blocked" << std::endl;
         }
     }
 
