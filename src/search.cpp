@@ -916,6 +916,11 @@ Value Worker::quiesce(const Position& pos, Stack* ss, Value alpha, Value beta, i
 
     // TT Probing
     auto tt_data = m_searcher.tt.probe(pos, ply);
+    // if we have a TT-move, check if it's legal in the current position.
+    // if it isn't, discard tt_data.
+    if (tt_data && tt_data->move != Move::none() && !MoveGen(pos).is_legal(tt_data->move)) {
+        tt_data = std::nullopt;
+    }
     if (tt_data
         && (tt_data->bound() == Bound::Exact
             || (tt_data->bound() == Bound::Lower && tt_data->score >= beta)
