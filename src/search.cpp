@@ -424,7 +424,12 @@ Value Worker::search(
     }
 
     auto tt_data = excluded ? std::nullopt : m_searcher.tt.probe(pos, ply);
-    bool ttpv    = PV_NODE;
+    // if we have a TT-move, check if it's legal in the current position.
+    // if it isn't, discard tt_data.
+    if (tt_data && tt_data->move != Move::none() && !MoveGen(pos).is_legal(tt_data->move)) {
+        tt_data = std::nullopt;
+    }
+    bool ttpv = PV_NODE;
 
     if (!PV_NODE && tt_data) {
         if (tt_data->depth >= depth
