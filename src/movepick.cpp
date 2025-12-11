@@ -22,8 +22,7 @@ Move MovePicker::next() {
     switch (m_stage) {
     case Stage::EmitTTMove:
         m_stage = Stage::GenerateMoves;
-        if (m_tt_move != Move::none() && m_movegen.is_legal(m_tt_move)
-            && (!m_threshold || m_tt_move.is_capture())) {
+        if (m_tt_move != Move::none() && (!m_threshold || m_tt_move.is_capture())) {
             return m_tt_move;
         }
 
