@@ -104,6 +104,8 @@ void UCIHandler::execute_command(const std::string& line) {
 #endif
     else if (command == "genfens") {
         handle_genfens(is);
+    } else if (command == "raweval") {
+        std::cout << evaluate_stm_pov(m_position) << std::endl;
     } else {
         std::cout << "Unknown command" << std::endl;
     }
